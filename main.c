@@ -5,10 +5,24 @@
 #ifdef _WIN32
 #include <conio.h>   /* _getch */
 #include <stdlib.h>  /* system("cls") */
+#include <windows.h> /* 启用 ANSI 转义序列支持 */
 #else
 #include <termios.h>
 #include <unistd.h>
 #endif
+
+/* Windows 控制台默认不解释 ANSI 转义序列，需要打开
+ * ENABLE_VIRTUAL_TERMINAL_PROCESSING；类 Unix 终端原生支持，无需处理。
+ */
+static void enable_ansi_colors(void)
+{
+#ifdef _WIN32
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+    if (h != INVALID_HANDLE_VALUE && GetConsoleMode(h, &mode))
+        SetConsoleMode(h, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+#endif
+}
 
 /* 读取一个按键（不回显、不需要回车）。
  * Windows 用 conio.h 的 _getch；类 Unix 用 termios 关闭规范模式实现。
@@ -84,6 +98,7 @@ int main(void)
 {
     int won_shown = 0; /* 胜利提示只显示一次，之后可继续挑战更高分 */
 
+    enable_ansi_colors();
     game_init();
 
     for (;;) {

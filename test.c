@@ -18,20 +18,20 @@ static int tests_failed = 0;
 
 /* 比较一行实际输出与期望输出，并校验合并得分 */
 static void check_row(const char *name,
-                      const int input[SIZE],
-                      const int expect[SIZE],
+                      const int input[BOARD_SIZE],
+                      const int expect[BOARD_SIZE],
                       int expect_gained)
 {
-    int b[SIZE];
+    int b[BOARD_SIZE];
     int gained = 0;
     int i, ok = 1;
 
-    for (i = 0; i < SIZE; i++)
+    for (i = 0; i < BOARD_SIZE; i++)
         b[i] = input[i];
 
     slide_left(b, &gained);
 
-    for (i = 0; i < SIZE; i++)
+    for (i = 0; i < BOARD_SIZE; i++)
         if (b[i] != expect[i])
             ok = 0;
     if (gained != expect_gained)
@@ -55,7 +55,7 @@ static void check_row(const char *name,
 /* 验证 gained 传 NULL 时不崩溃（防御性用例） */
 static void test_null_gained(void)
 {
-    int b[SIZE] = {2, 2, 0, 0};
+    int b[BOARD_SIZE] = {2, 2, 0, 0};
     tests_run++;
     slide_left(b, NULL); /* 不应段错误 */
     if (b[0] == 4 && b[1] == 0 && b[2] == 0 && b[3] == 0) {
@@ -80,8 +80,8 @@ static void test_smoke_moves(void)
     game_move(DIR_DOWN);
 
     /* 棋盘上的值只能是 0 或 2 的幂 */
-    for (r = 0; r < SIZE; r++)
-        for (c = 0; c < SIZE; c++) {
+    for (r = 0; r < BOARD_SIZE; r++)
+        for (c = 0; c < BOARD_SIZE; c++) {
             int v = game_get(r, c);
             if (v < 0 || (v != 0 && (v & (v - 1)) != 0))
                 bad = 1;
@@ -96,20 +96,20 @@ static void test_smoke_moves(void)
 }
 
 /* 把当前棋盘拷贝到 out（通过公开接口 game_get 逐格读取） */
-static void snapshot_board(int out[SIZE][SIZE])
+static void snapshot_board(int out[BOARD_SIZE][BOARD_SIZE])
 {
     int r, c;
-    for (r = 0; r < SIZE; r++)
-        for (c = 0; c < SIZE; c++)
+    for (r = 0; r < BOARD_SIZE; r++)
+        for (c = 0; c < BOARD_SIZE; c++)
             out[r][c] = game_get(r, c);
 }
 
 /* 比较当前棋盘是否与快照一致 */
-static int board_matches(const int snap[SIZE][SIZE])
+static int board_matches(const int snap[BOARD_SIZE][BOARD_SIZE])
 {
     int r, c;
-    for (r = 0; r < SIZE; r++)
-        for (c = 0; c < SIZE; c++)
+    for (r = 0; r < BOARD_SIZE; r++)
+        for (c = 0; c < BOARD_SIZE; c++)
             if (game_get(r, c) != snap[r][c])
                 return 0;
     return 1;
@@ -129,7 +129,7 @@ static int make_one_move(void)
 /* 撤销测试 1：历史为空时 game_undo 必须返回 0 且不破坏棋盘 */
 static void test_undo_empty_history(void)
 {
-    int snap[SIZE][SIZE];
+    int snap[BOARD_SIZE][BOARD_SIZE];
     tests_run++;
 
     game_init(); /* 重开会清空历史 */
@@ -147,7 +147,7 @@ static void test_undo_empty_history(void)
 /* 撤销测试 2：走一步有效移动后撤销，棋盘和分数都要回到移动前 */
 static void test_undo_restores_state(void)
 {
-    int snap[SIZE][SIZE];
+    int snap[BOARD_SIZE][BOARD_SIZE];
     tests_run++;
 
     game_init();
@@ -172,7 +172,7 @@ static void test_undo_restores_state(void)
 /* 撤销测试 3：连续走两步再连撤两步，应回到最初状态 */
 static void test_undo_two_steps(void)
 {
-    int snap[SIZE][SIZE];
+    int snap[BOARD_SIZE][BOARD_SIZE];
     tests_run++;
 
     game_init();

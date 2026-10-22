@@ -2,7 +2,7 @@
 #define GAME_H
 
 /* 棋盘边长（经典 2048 为 4x4） */
-#define SIZE 4
+#define BOARD_SIZE 4
 
 /* 方向枚举，供 game_move() 使用 */
 enum Direction {
@@ -22,7 +22,7 @@ void game_spawn(void);
  * 合并产生的分数累加到 *gained（可为 NULL）。
  * 四个方向的移动都通过反转/转置复用本函数。
  */
-void slide_left(int b[SIZE], int *gained);
+void slide_left(int b[BOARD_SIZE], int *gained);
 
 /* 向指定方向移动一步。
  * 若棋盘发生变化，返回 1，先把移动前的状态存入撤销历史，

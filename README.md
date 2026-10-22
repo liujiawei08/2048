@@ -37,6 +37,13 @@ Windows 下生成 `2048.exe`，类 Unix 下生成 `2048`。
 
 操作：w/a/s/d 或方向键移动，u 撤销一步，r 重新开始，q 退出。
 
+## 界面配色
+
+方块按数值显示不同颜色（ANSI 256 色转义序列）：2/4 为浅色底，
+8~64 橙红色系，128~1024 金色系，2048 为绿色加粗，超过 2048 为紫色加粗。
+Windows 下程序启动时会自动调用 `SetConsoleMode` 开启
+`ENABLE_VIRTUAL_TERMINAL_PROCESSING`；类 Unix 终端原生支持。
+
 ## 撤销功能
 
 `game.c` 内部维护一个最多 100 步的快照栈（`Snapshot`：棋盘 + 分数）。
