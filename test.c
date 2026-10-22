@@ -95,6 +95,105 @@ static void test_smoke_moves(void)
     }
 }
 
+/* 把当前棋盘拷贝到 out（通过公开接口 game_get 逐格读取） */
+static void snapshot_board(int out[SIZE][SIZE])
+{
+    int r, c;
+    for (r = 0; r < SIZE; r++)
+        for (c = 0; c < SIZE; c++)
+            out[r][c] = game_get(r, c);
+}
+
+/* 比较当前棋盘是否与快照一致 */
+static int board_matches(const int snap[SIZE][SIZE])
+{
+    int r, c;
+    for (r = 0; r < SIZE; r++)
+        for (c = 0; c < SIZE; c++)
+            if (game_get(r, c) != snap[r][c])
+                return 0;
+    return 1;
+}
+
+/* 依次尝试四个方向，走出一步有效移动；全都无效返回 0 */
+static int make_one_move(void)
+{
+    static const int dirs[4] = {DIR_LEFT, DIR_UP, DIR_RIGHT, DIR_DOWN};
+    int i;
+    for (i = 0; i < 4; i++)
+        if (game_move(dirs[i]))
+            return 1;
+    return 0;
+}
+
+/* 撤销测试 1：历史为空时 game_undo 必须返回 0 且不破坏棋盘 */
+static void test_undo_empty_history(void)
+{
+    int snap[SIZE][SIZE];
+    tests_run++;
+
+    game_init(); /* 重开会清空历史 */
+    snapshot_board(snap);
+
+    if (game_undo() != 0 || !board_matches(snap)) {
+        tests_failed++;
+        printf("FAIL  %-28s undo on empty history misbehaved\n",
+               "undo empty history");
+    } else {
+        printf("PASS  %-28s returns 0, board untouched\n", "undo empty history");
+    }
+}
+
+/* 撤销测试 2：走一步有效移动后撤销，棋盘和分数都要回到移动前 */
+static void test_undo_restores_state(void)
+{
+    int snap[SIZE][SIZE];
+    tests_run++;
+
+    game_init();
+    snapshot_board(snap);
+
+    if (!make_one_move()) {
+        tests_failed++;
+        printf("FAIL  %-28s cannot make any move after init\n",
+               "undo restores state");
+        return;
+    }
+
+    if (game_undo() != 1 || !board_matches(snap) || game_score() != 0) {
+        tests_failed++;
+        printf("FAIL  %-28s board/score not restored (score=%ld)\n",
+               "undo restores state", game_score());
+    } else {
+        printf("PASS  %-28s board & score restored\n", "undo restores state");
+    }
+}
+
+/* 撤销测试 3：连续走两步再连撤两步，应回到最初状态 */
+static void test_undo_two_steps(void)
+{
+    int snap[SIZE][SIZE];
+    tests_run++;
+
+    game_init();
+    snapshot_board(snap);
+
+    if (!make_one_move() || !make_one_move()) {
+        tests_failed++;
+        printf("FAIL  %-28s cannot make two moves after init\n",
+               "undo two steps");
+        return;
+    }
+
+    if (game_undo() != 1 || game_undo() != 1 ||
+        !board_matches(snap) || game_score() != 0) {
+        tests_failed++;
+        printf("FAIL  %-28s not back to initial state\n", "undo two steps");
+    } else {
+        printf("PASS  %-28s back to initial state\n", "undo two steps");
+    }
+}
+
 /* 测试入口：逐个注册用例并汇总结果 */
 int main(void)
 {
@@ -118,6 +217,11 @@ int main(void)
 
     test_null_gained();
     test_smoke_moves();
+
+    printf("== undo tests ==\n");
+    test_undo_empty_history();
+    test_undo_restores_state();
+    test_undo_two_steps();
 
     printf("== %d tests, %d passed, %d failed ==\n",
            tests_run, tests_run - tests_failed, tests_failed);

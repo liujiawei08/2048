@@ -1,12 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "game.h"
 
+/* 撤销历史的最大步数，超出后丢弃最早的一步 */
+#define UNDO_MAX 100
+
+/* 一步快照：整个棋盘 + 当时的分数 */
+typedef struct {
+    int board[SIZE][SIZE];
+    long score;
+} Snapshot;
+
 /* 棋盘与分数作为模块内部状态，对外只通过 game.h 的函数访问 */
 static int board[SIZE][SIZE];
 static long score;
+
+/* 撤销历史栈：history[0] 是最早的一步，history[history_len-1] 是最近的一步 */
+static Snapshot history[UNDO_MAX];
+static int history_len = 0;
 
 /* 把一行数组逆序（用于复用 slide_left 实现向右移动） */
 static void reverse_row(int b[SIZE])
@@ -52,6 +66,29 @@ static int boards_equal(const int a[SIZE][SIZE], const int b[SIZE][SIZE])
     return 1;
 }
 
+/* 把一份“棋盘 + 分数”快照压入撤销历史；栈满时丢弃最早的一步 */
+static void history_push(const int b[SIZE][SIZE], long s)
+{
+    if (history_len == UNDO_MAX) {
+        memmove(&history[0], &history[1], sizeof(Snapshot) * (UNDO_MAX - 1));
+        history_len--;
+    }
+    copy_board(history[history_len].board, b);
+    history[history_len].score = s;
+    history_len++;
+}
+
+/* 弹出最近一步快照；历史为空返回 0，成功弹出返回 1 */
+static int history_pop(int b[SIZE][SIZE], long *s)
+{
+    if (history_len == 0)
+        return 0;
+    history_len--;
+    copy_board(b, (const int (*)[SIZE])history[history_len].board);
+    *s = history[history_len].score;
+    return 1;
+}
+
 /* 初始化随机数种子（只应调用一次） */
 static void seed_rand_once(void)
 {
@@ -62,7 +99,7 @@ static void seed_rand_once(void)
     }
 }
 
-/* 初始化棋盘：清零、分数归零，并生成两个初始方块 */
+/* 初始化棋盘：清零、分数归零、清空撤销历史，并生成两个初始方块 */
 void game_init(void)
 {
     int r, c;
@@ -71,6 +108,7 @@ void game_init(void)
         for (c = 0; c < SIZE; c++)
             board[r][c] = 0;
     score = 0;
+    history_len = 0; /* 重开一局后不允许撤销到上一局 */
     game_spawn();
     game_spawn();
 }
@@ -182,10 +220,22 @@ int game_move(int dir)
     }
 
     if (boards_equal(before, board))
-        return 0; /* 该方向无法移动，棋盘不变 */
+        return 0; /* 该方向无法移动，棋盘与历史都不变 */
 
+    /* 有效移动：先把移动前的状态压入撤销历史，再计分、生成新方块 */
+    history_push((const int (*)[SIZE])before, score);
     score += gained;
     game_spawn();
+    return 1;
+}
+
+/* 撤销上一步有效移动：恢复棋盘与分数 */
+int game_undo(void)
+{
+    long s;
+    if (!history_pop(board, &s))
+        return 0;
+    score = s;
     return 1;
 }
 
@@ -252,5 +302,5 @@ void game_print(void)
         }
         printf("\n+------+------+------+------+\n");
     }
-    printf("Move: w/a/s/d or arrow keys, r = restart, q = quit\n");
+    printf("Move: w/a/s/d or arrow keys, u = undo, r = restart, q = quit\n");
 }

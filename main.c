@@ -116,6 +116,12 @@ int main(void)
             won_shown = 0;
             continue;
         }
+        if (ch == 'u' || ch == 'U') {
+            /* 撤销一步；若棋盘上不再有 2048，允许下次达成时再次提示 */
+            if (game_undo() && !game_won())
+                won_shown = 0;
+            continue;
+        }
 
         dir = key_to_dir(ch);
         if (dir >= 0)
