@@ -1,0 +1,256 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#include "game.h"
+
+/* 棋盘与分数作为模块内部状态，对外只通过 game.h 的函数访问 */
+static int board[SIZE][SIZE];
+static long score;
+
+/* 把一行数组逆序（用于复用 slide_left 实现向右移动） */
+static void reverse_row(int b[SIZE])
+{
+    int i;
+    for (i = 0; i < SIZE / 2; i++) {
+        int t = b[i];
+        b[i] = b[SIZE - 1 - i];
+        b[SIZE - 1 - i] = t;
+    }
+}
+
+/* 棋盘就地转置（用于复用 slide_left 实现上下移动） */
+static void transpose(void)
+{
+    int r, c;
+    for (r = 0; r < SIZE; r++) {
+        for (c = r + 1; c < SIZE; c++) {
+            int t = board[r][c];
+            board[r][c] = board[c][r];
+            board[c][r] = t;
+        }
+    }
+}
+
+/* 复制整个棋盘 */
+static void copy_board(int dst[SIZE][SIZE], const int src[SIZE][SIZE])
+{
+    int r, c;
+    for (r = 0; r < SIZE; r++)
+        for (c = 0; c < SIZE; c++)
+            dst[r][c] = src[r][c];
+}
+
+/* 比较两个棋盘是否完全相同 */
+static int boards_equal(const int a[SIZE][SIZE], const int b[SIZE][SIZE])
+{
+    int r, c;
+    for (r = 0; r < SIZE; r++)
+        for (c = 0; c < SIZE; c++)
+            if (a[r][c] != b[r][c])
+                return 0;
+    return 1;
+}
+
+/* 初始化随机数种子（只应调用一次） */
+static void seed_rand_once(void)
+{
+    static int seeded = 0;
+    if (!seeded) {
+        srand((unsigned int)time(NULL));
+        seeded = 1;
+    }
+}
+
+/* 初始化棋盘：清零、分数归零，并生成两个初始方块 */
+void game_init(void)
+{
+    int r, c;
+    seed_rand_once();
+    for (r = 0; r < SIZE; r++)
+        for (c = 0; c < SIZE; c++)
+            board[r][c] = 0;
+    score = 0;
+    game_spawn();
+    game_spawn();
+}
+
+/* 在随机空格生成一个新方块（90% 为 2，10% 为 4） */
+void game_spawn(void)
+{
+    int empty[SIZE * SIZE];
+    int n = 0;
+    int r, c, pick, value;
+
+    for (r = 0; r < SIZE; r++)
+        for (c = 0; c < SIZE; c++)
+            if (board[r][c] == 0)
+                empty[n++] = r * SIZE + c;
+
+    if (n == 0)
+        return;
+
+    pick = empty[rand() % n];
+    value = (rand() % 10 == 0) ? 4 : 2;
+    board[pick / SIZE][pick % SIZE] = value;
+}
+
+/* 核心算法：把一行向左滑动并合并一次。
+ * 分两步：先去掉 0 把所有方块压到左边，再从左到右扫描，
+ * 相邻相等就合并并跳过后一个元素 —— 跳过这步保证了
+ * 一次移动中新生成的方块不会再次参与合并（避免连续合并 bug）。
+ */
+void slide_left(int b[SIZE], int *gained)
+{
+    int tmp[SIZE] = {0, 0, 0, 0};
+    int out[SIZE] = {0, 0, 0, 0};
+    int n = 0, m = 0, i;
+
+    /* 第一步：压缩，非零元素依次靠左 */
+    for (i = 0; i < SIZE; i++)
+        if (b[i] != 0)
+            tmp[n++] = b[i];
+
+    /* 第二步：合并，合并成功后 i 额外加 1，跳过后一个元素 */
+    for (i = 0; i < n; i++) {
+        if (i + 1 < n && tmp[i] == tmp[i + 1]) {
+            out[m] = tmp[i] * 2;
+            if (gained != NULL)
+                *gained += tmp[i] * 2;
+            m++;
+            i++; /* 关键：一次移动中每个方块最多合并一次 */
+        } else {
+            out[m++] = tmp[i];
+        }
+    }
+
+    for (i = 0; i < SIZE; i++)
+        b[i] = out[i];
+}
+
+/* 对整个棋盘执行“向左移动”，返回合并得分 */
+static int move_board_left(void)
+{
+    int r;
+    int gained = 0;
+    for (r = 0; r < SIZE; r++)
+        slide_left(board[r], &gained);
+    return gained;
+}
+
+/* 向指定方向移动：通过转置/反转把四个方向统一成“向左”，
+ * 移动完成后比较前后棋盘，有变化才计分并生成新方块。
+ */
+int game_move(int dir)
+{
+    int before[SIZE][SIZE];
+    int gained = 0;
+    int r;
+
+    copy_board(before, board);
+
+    switch (dir) {
+    case DIR_LEFT:
+        gained = move_board_left();
+        break;
+    case DIR_RIGHT:
+        /* 每一行反转 -> 左移 -> 反转回来 */
+        for (r = 0; r < SIZE; r++) {
+            reverse_row(board[r]);
+            slide_left(board[r], &gained);
+            reverse_row(board[r]);
+        }
+        break;
+    case DIR_UP:
+        /* 转置后列变行，左移等价于上移 */
+        transpose();
+        gained = move_board_left();
+        transpose();
+        break;
+    case DIR_DOWN:
+        /* 转置 + 右移等价于下移 */
+        transpose();
+        for (r = 0; r < SIZE; r++) {
+            reverse_row(board[r]);
+            slide_left(board[r], &gained);
+            reverse_row(board[r]);
+        }
+        transpose();
+        break;
+    default:
+        return 0;
+    }
+
+    if (boards_equal(before, board))
+        return 0; /* 该方向无法移动，棋盘不变 */
+
+    score += gained;
+    game_spawn();
+    return 1;
+}
+
+/* 判断游戏是否结束：有空格可继续；有相邻相等方块也可继续 */
+int game_over(void)
+{
+    int r, c;
+
+    for (r = 0; r < SIZE; r++)
+        for (c = 0; c < SIZE; c++)
+            if (board[r][c] == 0)
+                return 0;
+
+    for (r = 0; r < SIZE; r++) {
+        for (c = 0; c < SIZE; c++) {
+            if (c + 1 < SIZE && board[r][c] == board[r][c + 1])
+                return 0;
+            if (r + 1 < SIZE && board[r][c] == board[r + 1][c])
+                return 0;
+        }
+    }
+    return 1;
+}
+
+/* 判断棋盘上是否已出现 2048 */
+int game_won(void)
+{
+    int r, c;
+    for (r = 0; r < SIZE; r++)
+        for (c = 0; c < SIZE; c++)
+            if (board[r][c] == 2048)
+                return 1;
+    return 0;
+}
+
+/* 读取某个格子的值 */
+int game_get(int row, int col)
+{
+    if (row < 0 || row >= SIZE || col < 0 || col >= SIZE)
+        return -1;
+    return board[row][col];
+}
+
+/* 读取当前总分 */
+long game_score(void)
+{
+    return score;
+}
+
+/* 用 printf 格式化输出棋盘：固定宽度保证列对齐，空格显示为 '.' */
+void game_print(void)
+{
+    int r, c;
+
+    printf("Score: %ld\n", game_score());
+    printf("+------+------+------+------+\n");
+    for (r = 0; r < SIZE; r++) {
+        printf("|");
+        for (c = 0; c < SIZE; c++) {
+            if (board[r][c] == 0)
+                printf("     .|");
+            else
+                printf("%6d|", board[r][c]);
+        }
+        printf("\n+------+------+------+------+\n");
+    }
+    printf("Move: w/a/s/d or arrow keys, r = restart, q = quit\n");
+}
