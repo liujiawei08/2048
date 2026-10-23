@@ -4,10 +4,14 @@
 
 ## 文件结构
 
-- `main.c` — 程序入口、游戏主循环、键盘输入（w/a/s/d 与方向键）
-- `game.h` — 常量与函数声明
-- `game.c` — 棋盘初始化、随机生成新方块、移动合并、胜负判断、画面输出
-- `Makefile` — 一键编译
+项目按三层拆分，依赖方向为 main → render / input → game，层间只通过头文件通信：
+
+- `main.c` — 程序入口与主循环，只做流程编排
+- `game.h` / `game.c` — 逻辑层：棋盘初始化、随机生成、移动合并、撤销栈、胜负判断
+- `render.h` / `render.c` — 渲染层：ANSI 颜色映射、清屏、棋盘输出（只读调用 game 接口）
+- `input.h` / `input.c` — 输入层：无回显读键、方向键翻译（Windows conio / Unix termios）
+- `test.c` — 单元测试，只链接逻辑层
+- `Makefile` — 一键编译（`make` 构建游戏，`make check` 编译并运行测试）
 
 ## 编译
 
@@ -20,7 +24,7 @@ make
 或者直接用 gcc：
 
 ```sh
-gcc -Wall -Wextra -std=c11 -O2 -o 2048 main.c game.c
+gcc -Wall -Wextra -std=c11 -O2 -o 2048 main.c game.c render.c input.c
 ```
 
 Windows 下生成 `2048.exe`，类 Unix 下生成 `2048`。
@@ -39,8 +43,9 @@ Windows 下生成 `2048.exe`，类 Unix 下生成 `2048`。
 
 ## 界面配色
 
-方块按数值显示不同颜色（ANSI 256 色转义序列）：2/4 为浅色底，
-8~64 橙红色系，128~1024 金色系，2048 为绿色加粗，超过 2048 为紫色加粗。
+方块按数值显示不同颜色（ANSI 256 色转义序列）：2 青、4 绿、8 黄，
+16~1024 经过橙、品红、蓝、紫、铜过渡，2048 为红底白字加粗高亮，
+超过 2048 为暗紫加粗。
 Windows 下程序启动时会自动调用 `SetConsoleMode` 开启
 `ENABLE_VIRTUAL_TERMINAL_PROCESSING`；类 Unix 终端原生支持。
 

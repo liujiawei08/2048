@@ -48,7 +48,4 @@ int game_get(int row, int col);
 /* 读取当前总分 */
 long game_score(void);
 
-/* 用 printf 格式化输出棋盘和分数，保证列对齐 */
-void game_print(void);
-
 #endif /* GAME_H */
