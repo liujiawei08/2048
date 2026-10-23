@@ -8,6 +8,9 @@
 /* 撤销历史的最大步数，超出后丢弃最早的一步 */
 #define UNDO_MAX 100
 
+/* 最高分记录文件名（保存在程序运行目录） */
+#define HIGHSCORE_FILE "highscore.txt"
+
 /* 一步快照：整个棋盘 + 当时的分数 */
 typedef struct {
     int board[BOARD_SIZE][BOARD_SIZE];
@@ -17,6 +20,12 @@ typedef struct {
 /* 棋盘与分数作为模块内部状态，对外只通过 game.h 的函数访问 */
 static int board[BOARD_SIZE][BOARD_SIZE];
 static long score;
+
+/* 历史最高分：启动时从文件载入，本局超越后即时更新 */
+static long high_score = 0;
+
+/* 本进程内是否已打破载入时的纪录（决定是否需要在结束时写盘） */
+static int record_beaten = 0;
 
 /* 撤销历史栈：history[0] 是最早的一步，history[history_len-1] 是最近的一步 */
 static Snapshot history[UNDO_MAX];
@@ -225,6 +234,10 @@ int game_move(int dir)
     /* 有效移动：先把移动前的状态压入撤销历史，再计分、生成新方块 */
     history_push((const int (*)[BOARD_SIZE])before, score);
     score += gained;
+    if (score > high_score) {
+        high_score = score;  /* 即时刷新内存中的最高分，顶栏实时可见 */
+        record_beaten = 1;
+    }
     game_spawn();
     return 1;
 }
@@ -283,4 +296,40 @@ int game_get(int row, int col)
 long game_score(void)
 {
     return score;
+}
+
+/* 从本地文件读取历史最高分；文件不存在或内容损坏时视为 0 */
+void game_highscore_load(void)
+{
+    FILE *f = fopen(HIGHSCORE_FILE, "r");
+    high_score = 0;
+    record_beaten = 0;
+    if (f != NULL) {
+        if (fscanf(f, "%ld", &high_score) != 1 || high_score < 0)
+            high_score = 0;
+        fclose(f);
+    }
+}
+
+/* 读取历史最高分 */
+long game_high_score(void)
+{
+    return high_score;
+}
+
+/* 破了纪录就把新高分写回文件；没破纪录返回 0 */
+int game_highscore_save(void)
+{
+    FILE *f;
+    if (!record_beaten)
+        return 0;
+
+    f = fopen(HIGHSCORE_FILE, "w");
+    if (f != NULL) {
+        fprintf(f, "%ld\n", high_score);
+        fclose(f);
+    }
+    /* 写盘失败（如无权限）不算逻辑错误，纪录在内存中仍然生效 */
+    record_beaten = 0; /* 已处理，避免重复写盘 */
+    return 1;
 }

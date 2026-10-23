@@ -48,4 +48,15 @@ int game_get(int row, int col);
 /* 读取当前总分 */
 long game_score(void);
 
+/* 从本地文件 highscore.txt 读取历史最高分；文件不存在或损坏时视为 0。
+ * 程序启动时调用一次。
+ */
+void game_highscore_load(void);
+
+/* 读取历史最高分（本局分数超过后会即时更新内存中的值） */
+long game_high_score(void);
+
+/* 游戏结束时调用：若当前分数破了纪录则写回文件并返回 1，否则返回 0 */
+int game_highscore_save(void);
+
 #endif /* GAME_H */

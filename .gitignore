@@ -6,3 +6,6 @@
 
 # 临时测试文件
 test_*.c
+
+# 本地最高分记录
+highscore.txt

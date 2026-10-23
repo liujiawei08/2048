@@ -194,6 +194,32 @@ static void test_undo_two_steps(void)
     }
 }
 
+/* 最高分测试：载入后分数非负；走出带合并的一步后，最高分 >= 当前分数。
+ * 只读不写，不会改动真实的 highscore.txt。
+ */
+static void test_highscore_invariant(void)
+{
+    int i;
+    tests_run++;
+
+    game_highscore_load();
+    game_init();
+
+    /* 最多走 50 步，争取发生一次合并让分数大于 0 */
+    for (i = 0; i < 50 && game_score() == 0; i++)
+        if (!make_one_move())
+            break;
+
+    if (game_high_score() < 0 || game_high_score() < game_score()) {
+        tests_failed++;
+        printf("FAIL  %-28s best=%ld score=%ld\n",
+               "highscore invariant", game_high_score(), game_score());
+    } else {
+        printf("PASS  %-28s best=%ld >= score=%ld\n",
+               "highscore invariant", game_high_score(), game_score());
+    }
+}
+
 /* 测试入口：逐个注册用例并汇总结果 */
 int main(void)
 {
@@ -222,6 +248,9 @@ int main(void)
     test_undo_empty_history();
     test_undo_restores_state();
     test_undo_two_steps();
+
+    printf("== highscore tests ==\n");
+    test_highscore_invariant();
 
     printf("== %d tests, %d passed, %d failed ==\n",
            tests_run, tests_run - tests_failed, tests_failed);

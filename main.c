@@ -9,9 +9,11 @@
  */
 int main(void)
 {
-    int won_shown = 0; /* 胜利提示只显示一次，之后可继续挑战更高分 */
+    int won_shown = 0;      /* 胜利提示只显示一次，之后可继续挑战更高分 */
+    char msg[64] = "";      /* 一次性提示信息（如“无法撤销”），下一帧后清空 */
 
     render_init();
+    game_highscore_load();  /* 从 highscore.txt 载入历史最高分 */
     game_init();
 
     for (;;) {
@@ -19,12 +21,18 @@ int main(void)
 
         render_clear();
         render_board();
+        if (msg[0] != '\0') {
+            printf("%s\n", msg);
+            msg[0] = '\0'; /* 提示只显示一帧 */
+        }
 
         if (game_won() && !won_shown) {
             printf("You made 2048! Keep going or press q to quit.\n");
             won_shown = 1;
         }
         if (game_over()) {
+            if (game_highscore_save())
+                printf("New record! Best score: %ld\n", game_high_score());
             printf("Game over! Final score: %ld\n", game_score());
             printf("Press r to restart, any other key to quit.\n");
             ch = input_read_key();
@@ -37,17 +45,24 @@ int main(void)
         }
 
         ch = input_read_key();
-        if (ch == 'q' || ch == 'Q')
+        if (ch == 'q' || ch == 'Q') {
+            game_highscore_save(); /* 中途退出也把破过的纪录写盘 */
             break;
+        }
         if (ch == 'r' || ch == 'R') {
+            game_highscore_save();
             game_init();
             won_shown = 0;
             continue;
         }
         if (ch == 'u' || ch == 'U') {
-            /* 撤销一步；若棋盘上不再有 2048，允许下次达成时再次提示 */
-            if (game_undo() && !game_won())
-                won_shown = 0;
+            if (game_undo()) {
+                /* 若棋盘上不再有 2048，允许下次达成时再次提示 */
+                if (!game_won())
+                    won_shown = 0;
+            } else {
+                snprintf(msg, sizeof msg, "Cannot undo: already at the start.");
+            }
             continue;
         }
 
@@ -57,6 +72,6 @@ int main(void)
     }
 
     render_clear();
-    printf("Bye! Final score: %ld\n", game_score());
+    printf("Bye! Final score: %ld (Best: %ld)\n", game_score(), game_high_score());
     return 0;
 }

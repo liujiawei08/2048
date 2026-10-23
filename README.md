@@ -49,6 +49,13 @@ Windows 下生成 `2048.exe`，类 Unix 下生成 `2048`。
 Windows 下程序启动时会自动调用 `SetConsoleMode` 开启
 `ENABLE_VIRTUAL_TERMINAL_PROCESSING`；类 Unix 终端原生支持。
 
+## 本地最高分
+
+启动时从程序目录的 `highscore.txt` 读取历史最高分，显示在顶栏
+`Score: 当前分  Best: 最高分`。本局分数一旦超越纪录会即时刷新显示；
+游戏结束（或中途按 q/r）时若破了纪录，自动把新高分写回文件。
+文件不存在或内容损坏时按 0 处理，不影响游戏。
+
 ## 撤销功能
 
 `game.c` 内部维护一个最多 100 步的快照栈（`Snapshot`：棋盘 + 分数）。

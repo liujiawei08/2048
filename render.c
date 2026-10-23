@@ -64,7 +64,9 @@ void render_board(void)
 {
     int r, c;
 
-    printf("Score: %ld\n", game_score());
+    /* 顶栏：当前分数 + 历史最高分（最高分为黄色） */
+    printf("Score: %ld    Best: \033[38;5;226m%ld\033[0m\n",
+           game_score(), game_high_score());
     printf("+------+------+------+------+\n");
     for (r = 0; r < BOARD_SIZE; r++) {
         printf("|");
