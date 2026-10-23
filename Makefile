@@ -12,10 +12,11 @@ endif
 
 LOGIC = game_logic.c game_logic.h
 UI    = ui.c ui.h
+AI    = ai.c ai.h
 
-# 游戏本体：主循环 + 逻辑层 + UI 层
-$(TARGET): main.c $(LOGIC) $(UI)
-	$(CC) $(CFLAGS) -o $(TARGET) main.c game_logic.c ui.c
+# 游戏本体：主循环 + 逻辑层 + UI 层 + AI 层
+$(TARGET): main.c $(LOGIC) $(UI) $(AI)
+	$(CC) $(CFLAGS) -o $(TARGET) main.c game_logic.c ui.c ai.c
 
 # 单元测试只链接逻辑层，不依赖 UI
 $(TEST): test.c $(LOGIC)

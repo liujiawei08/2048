@@ -27,8 +27,13 @@ static long high_score = 0;
 /* 本进程内是否已打破载入时的纪录（决定是否需要在结束时写盘） */
 static int record_beaten = 0;
 
-/* 撤销历史栈：history[0] 是最早的一步，history[history_len-1] 是最近的一步 */
+/* 撤销历史：环形缓冲区实现。
+ * history_start 指向最早的一步，history_len 为当前步数；
+ * 压栈/弹栈都只移动下标，均为 O(1)，栈满时直接覆盖最早一步，
+ * 避免了旧实现栈满后每次 memmove 搬移整个数组的开销。
+ */
 static Snapshot history[UNDO_MAX];
+static int history_start = 0;
 static int history_len = 0;
 
 /* 把一行数组逆序（用于复用 slide_left 实现向右移动） */
@@ -75,26 +80,34 @@ static int boards_equal(const int a[BOARD_SIZE][BOARD_SIZE], const int b[BOARD_S
     return 1;
 }
 
-/* 把一份“棋盘 + 分数”快照压入撤销历史；栈满时丢弃最早的一步 */
+/* 把一份“棋盘 + 分数”快照压入撤销历史（环形缓冲区，O(1)）；
+ * 栈满时覆盖最早的一步（等价于丢弃队首再入队）。
+ */
 static void history_push(const int b[BOARD_SIZE][BOARD_SIZE], long s)
 {
+    int slot;
     if (history_len == UNDO_MAX) {
-        memmove(&history[0], &history[1], sizeof(Snapshot) * (UNDO_MAX - 1));
-        history_len--;
+        /* 已满：新快照直接写入队首位置，然后队首后移一格 */
+        slot = history_start;
+        history_start = (history_start + 1) % UNDO_MAX;
+    } else {
+        slot = (history_start + history_len) % UNDO_MAX;
+        history_len++;
     }
-    copy_board(history[history_len].board, b);
-    history[history_len].score = s;
-    history_len++;
+    copy_board(history[slot].board, b);
+    history[slot].score = s;
 }
 
 /* 弹出最近一步快照；历史为空返回 0，成功弹出返回 1 */
 static int history_pop(int b[BOARD_SIZE][BOARD_SIZE], long *s)
 {
+    int slot;
     if (history_len == 0)
         return 0;
     history_len--;
-    copy_board(b, (const int (*)[BOARD_SIZE])history[history_len].board);
-    *s = history[history_len].score;
+    slot = (history_start + history_len) % UNDO_MAX;
+    copy_board(b, (const int (*)[BOARD_SIZE])history[slot].board);
+    *s = history[slot].score;
     return 1;
 }
 
@@ -117,6 +130,7 @@ void game_init(void)
         for (c = 0; c < BOARD_SIZE; c++)
             board[r][c] = 0;
     score = 0;
+    history_start = 0;
     history_len = 0; /* 重开一局后不允许撤销到上一局 */
     game_spawn();
     game_spawn();

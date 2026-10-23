@@ -2,6 +2,19 @@
 
 #include "game_logic.h" /* 逻辑层：棋盘状态与移动 */
 #include "ui.h"         /* UI 层：渲染、输入、音效 */
+#include "ai.h"         /* AI 层：Expectimax 自动决策 */
+
+/* 方向枚举值对应的显示名（用于 AI 走子提示） */
+static const char *dir_name(int dir)
+{
+    switch (dir) {
+    case DIR_LEFT:  return "LEFT";
+    case DIR_RIGHT: return "RIGHT";
+    case DIR_UP:    return "UP";
+    case DIR_DOWN:  return "DOWN";
+    default:        return "?";
+    }
+}
 
 /* 程序入口：初始化后进入“显示 -> 读键 -> 移动”的主循环。
  * 本文件只负责流程编排，所有具体工作委派给两个模块。
@@ -64,6 +77,25 @@ int main(void)
                 ui_sound_undo();
             } else {
                 snprintf(msg, sizeof msg, "Cannot undo: already at the start.");
+                ui_sound_denied();
+            }
+            continue;
+        }
+
+        if (ch == 'a' || ch == 'A') {
+            /* AI 自动游玩：Expectimax 计算最佳方向并执行 */
+            int ai_dir = ai_best_move();
+            if (ai_dir >= 0) {
+                long before_score = game_score();
+                if (game_move(ai_dir)) {
+                    if (game_score() > before_score)
+                        ui_sound_merge();
+                    else
+                        ui_sound_move();
+                    snprintf(msg, sizeof msg, "AI moved: %s", dir_name(ai_dir));
+                }
+            } else {
+                snprintf(msg, sizeof msg, "AI: no available move.");
                 ui_sound_denied();
             }
             continue;
