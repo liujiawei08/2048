@@ -9,3 +9,9 @@ test_*.c
 
 # 本地最高分记录
 highscore.txt
+
+# 第三方图形库（EasyX 头文件与库，按 README 本地放置，不入库）
+third_party/
+
+# CMake 构建目录
+build/

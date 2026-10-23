@@ -1,6 +1,10 @@
 #ifndef AI_H
 #define AI_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* AI 自动游玩模块。
  *
  * 算法：Expectimax（Minimax 在随机博弈下的推广）+ Max 层 Alpha-Beta 剪枝。
@@ -14,5 +18,9 @@
  *   之后照常调用 game_move(dir) 即可让 AI 的决策生效。
  */
 int ai_best_move(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* AI_H */

@@ -4,33 +4,41 @@
 （Windows / Linux / macOS），带 ANSI 256 色渲染、撤销、本地最高分、音效，
 以及基于 Expectimax + Alpha-Beta 剪枝的 **AI 自动游玩**模式。
 
+另附一个 Windows 图形版（EasyX 绘制窗口、支持鼠标按钮），逻辑层与终端版完全共享。
+
 ## 效果截图
 
-<!-- 截图占位符：运行游戏后截图替换下方链接即可 -->
-![游戏主界面](docs/screenshot-main.png)
-![AI 自动游玩](docs/screenshot-ai.png)
+![EasyX 图形版界面](docs/screenshot-gui.png)
+
+<!-- 终端版截图占位符：放好 docs/screenshot-terminal.png 后取消注释
+![终端版界面](docs/screenshot-terminal.png) -->
 
 ## 功能特性
 
 - 经典 4×4 规则，严格保证"一次移动中每个方块最多合并一次"
 - ANSI 256 色方块渲染：2 青、4 绿、8 黄……2048 红底白字高亮
-- 方向键 / WASD 双套操作，Windows 与类 Unix 终端均无回显即时响应
+- 方向键或 W/S/D 快捷键，Windows 与类 Unix 终端均无回显即时响应
 - **撤销**：最多回退 100 步（环形缓冲区，O(1) 压栈弹栈）
 - **本地最高分**：`highscore.txt` 持久化，顶栏实时显示
 - **音效反馈**：移动 / 合并 / 撤销 / 拒绝 / 胜利 / 终局
   （Windows 用 `Beep()`，类 Unix 用终端响铃）
 - **AI 自动游玩**：按 `a`，AI 用 Expectimax 搜索 + Alpha-Beta 剪枝
   计算最佳方向并立即执行
+- **Windows 图形版（可选）**：EasyX 绘制 4×4 棋盘、彩色方块与数字，
+  鼠标点击撤销 / 重开 / AI / 退出按钮，键盘在窗口内直接响应
 
 ## 操作说明
 
+终端版与图形版操作一致（图形版还支持点击底部按钮）：
+
 | 按键 | 功能 |
 |---|---|
-| `W` `A` `S` `D` 或 ↑ ← ↓ → | 向对应方向移动 |
+| ↑ ← ↓ → | 向对应方向移动 |
+| `W` `S` `D` | 上 / 下 / 右移动（`A` 被 AI 占用，左移请用 ←） |
 | `U` | 撤销一步（最多 100 步） |
 | `A` | AI 自动计算并执行最佳一步 |
 | `R` | 重新开始 |
-| `Q` | 退出（自动保存已破的纪录） |
+| `Q` / `Esc` | 退出（自动保存已破的纪录） |
 
 ## 编译指南
 
@@ -66,16 +74,59 @@ gcc -Wall -Wextra -std=c11 -O2 -o test test.c game_logic.c   # 单元测试
 ./test
 ```
 
+### 图形版（EasyX，仅 Windows）
+
+EasyX 26.9.25 官方安装包同时提供 MSVC 与 MinGW（GCC 4.9.2+）版本。
+把 MinGW 版的头文件和库放成下面的目录结构（`third_party/` 已在
+`.gitignore` 中，库文件不入库）：
+
+```
+third_party/easyx/
+├── include/        # 放 easyx.h / graphics.h 等头文件
+└── lib/
+    └── libeasyx.a  # MinGW 版静态库
+```
+
+然后用以下任一方式构建图形版：
+
+```sh
+make gui            # 生成 game_gui.exe
+./game_gui.exe
+```
+
+```sh
+mkdir build && cd build
+cmake ..            # 自动检测 third_party/easyx
+cmake --build .
+./game_gui.exe
+```
+
+CMake 也可以用 `-DEASYX_ROOT=你的路径` 指定别处的 EasyX；
+找不到 EasyX 时只跳过图形版，终端版与单元测试照常构建。
+
+图形版要点：`ui_gui.cpp` 用 `initgraph` 创建固定尺寸窗口，`solidroundrect`
+画圆角方块、`outtextxy` 居中绘制数字；输入改为 `peekmessage` 轮询
+`EX_KEY` / `EX_MOUSE`，不再使用 `getch`；`-mwindows` 去掉多余的控制台窗口。
+
+注意：**EasyX 只支持 C++**（头文件里有 `#error EasyX is only for C++`），
+所以 `main_gui.cpp` / `ui_gui.cpp` 用 g++ 编译；逻辑层 `game_logic.c` 与
+`ai.c` 仍是纯 C，通过头文件里的 `extern "C"` 保证链接一致。
+`game_logic.c` 与 `ai.c` 一行未改，两个版本共享同一套核心逻辑。
+
 ## 项目结构
 
 ```
-├── main.c          程序入口与主循环，只做流程编排
+├── main.c          终端版入口与主循环，只做流程编排
 ├── game_logic.h/.c 逻辑层：棋盘、移动合并、撤销、胜负、最高分（无 printf）
-├── ui.h/.c         UI 层：ANSI 渲染、读键、音效
+├── ui.h/.c         终端 UI 层：ANSI 渲染、读键、音效
 ├── ai.h/.c         AI 层：Expectimax + Alpha-Beta，只读棋盘推演
+├── main_gui.cpp    图形版入口与主循环（事件驱动，C++）
+├── ui_gui.h/.cpp   图形 UI 层：EasyX 绘制、鼠标/键盘消息、音效
+├── docs/           截图
 ├── test.c          单元测试（只链接逻辑层，18 个用例）
-├── Makefile        简易构建
-└── CMakeLists.txt  CMake 跨平台构建（含 CTest）
+├── Makefile        简易构建（含 make gui）
+├── CMakeLists.txt  CMake 跨平台构建（含 CTest 与可选 EasyX 目标）
+└── run.bat         双击编译并运行终端版
 ```
 
 层间只通过头文件通信：UI 层和 AI 层都依赖逻辑层，主循环依赖全部三层，

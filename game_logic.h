@@ -1,6 +1,13 @@
 #ifndef GAME_LOGIC_H
 #define GAME_LOGIC_H
 
+/* EasyX 图形版是 C++，逻辑层保持纯 C：
+ * extern "C" 保证 C++ 调用时按 C 的符号规则链接。
+ */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* 棋盘边长（经典 2048 为 4x4） */
 #define BOARD_SIZE 4
 
@@ -58,5 +65,9 @@ long game_high_score(void);
 
 /* 游戏结束时调用：若当前分数破了纪录则写回文件并返回 1，否则返回 0 */
 int game_highscore_save(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GAME_LOGIC_H */
