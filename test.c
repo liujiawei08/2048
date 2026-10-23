@@ -1,9 +1,9 @@
 /* test.c — 2048 合并逻辑单元测试
  *
  * 编译（Windows / MinGW）:
- *   gcc -Wall -Wextra -std=c11 -O2 -o test.exe test.c game.c
+ *   gcc -Wall -Wextra -std=c11 -O2 -o test.exe test.c game_logic.c
  * 编译（Linux / macOS）:
- *   gcc -Wall -Wextra -std=c11 -O2 -o test test.c game.c
+ *   gcc -Wall -Wextra -std=c11 -O2 -o test test.c game_logic.c
  * 运行:
  *   ./test.exe   （或 ./test）
  *
@@ -11,7 +11,7 @@
  */
 #include <stdio.h>
 
-#include "game.h"
+#include "game_logic.h"
 
 static int tests_run = 0;
 static int tests_failed = 0;

@@ -1,5 +1,5 @@
-#ifndef GAME_H
-#define GAME_H
+#ifndef GAME_LOGIC_H
+#define GAME_LOGIC_H
 
 /* 棋盘边长（经典 2048 为 4x4） */
 #define BOARD_SIZE 4
@@ -59,4 +59,4 @@ long game_high_score(void);
 /* 游戏结束时调用：若当前分数破了纪录则写回文件并返回 1，否则返回 0 */
 int game_highscore_save(void);
 
-#endif /* GAME_H */
+#endif /* GAME_LOGIC_H */

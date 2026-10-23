@@ -3,7 +3,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "game.h"
+#include "game_logic.h"
 
 /* 撤销历史的最大步数，超出后丢弃最早的一步 */
 #define UNDO_MAX 100

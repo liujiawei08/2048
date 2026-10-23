@@ -4,39 +4,42 @@
 
 ## 文件结构
 
-项目按三层拆分，依赖方向为 main → render / input → game，层间只通过头文件通信：
+项目分两层 + 入口 + 测试，层间只通过头文件通信：
 
 - `main.c` — 程序入口与主循环，只做流程编排
-- `game.h` / `game.c` — 逻辑层：棋盘初始化、随机生成、移动合并、撤销栈、胜负判断
-- `render.h` / `render.c` — 渲染层：ANSI 颜色映射、清屏、棋盘输出（只读调用 game 接口）
-- `input.h` / `input.c` — 输入层：无回显读键、方向键翻译（Windows conio / Unix termios）
+- `game_logic.h` / `game_logic.c` — 逻辑层：棋盘初始化、随机生成、
+  移动合并（slide_left）、撤销栈、胜负判断、最高分读写，**不含任何 printf**
+- `ui.h` / `ui.c` — UI 层：ANSI 颜色渲染、清屏、无回显读键（方向键翻译）、
+  事件音效（Windows Beep / Unix 响铃）
 - `test.c` — 单元测试，只链接逻辑层
-- `Makefile` — 一键编译（`make` 构建游戏，`make check` 编译并运行测试）
+- `Makefile` — `make` 一键构建，`make check` 编译并运行测试，`make clean` 清理
 
 ## 编译
 
 有 make 的环境（MinGW / MSYS2 / Linux / macOS）：
 
 ```sh
-make
+make          # 生成 game.exe（Windows）或 game（类 Unix）
+make check    # 编译并运行单元测试
+make clean    # 清理编译产物
 ```
 
 或者直接用 gcc：
 
 ```sh
-gcc -Wall -Wextra -std=c11 -O2 -o 2048 main.c game.c render.c input.c
+gcc -Wall -Wextra -std=c11 -O2 -o game main.c game_logic.c ui.c
 ```
 
-Windows 下生成 `2048.exe`，类 Unix 下生成 `2048`。
+Windows 下生成 `game.exe`，类 Unix 下生成 `game`。
 
 ## 运行
 
 ```sh
 # Windows
-./2048.exe
+./game.exe
 
 # Linux / macOS
-./2048
+./game
 ```
 
 操作：w/a/s/d 或方向键移动，u 撤销一步，r 重新开始，q 退出。
